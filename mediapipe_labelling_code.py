@@ -58,17 +58,18 @@ def extract_keypoints(results):
     return keypoints
 
 
-def process_video(video_file, output_directory):
+def process_video(video_file, output_directory, frame_rate=1):
     cap = cv2.VideoCapture(video_file)
     if not cap.isOpened():
         print(f"Error opening video file: {video_file}")
         return
 
     all_landmarks = []
+    frame_index = 0
 
     # Initialize MediaPipe Holistic model
     with mp_holistic.Holistic(
-        model_complexity=2,
+        model_complexity=0,
         refine_face_landmarks=True,
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
@@ -77,12 +78,16 @@ def process_video(video_file, output_directory):
             ret, frame = cap.read()
             if not ret:
                 break
-            # Perform MediaPipe detection
-            results = mediapipe_detection(frame, holistic)
-            # Extract keypoints for the frame
-            keypoints = extract_keypoints(results)
-            # Append keypoints to the list
-            all_landmarks.append(keypoints)
+            # Process every 3rd frame
+            if frame_index % frame_rate == 0:
+                # Perform MediaPipe detection
+                results = mediapipe_detection(frame, holistic)
+                # Extract keypoints for the frame
+                keypoints = extract_keypoints(results)
+                # Append keypoints to the list
+                all_landmarks.append(keypoints)
+
+            frame_index += 1  # Increment the frame index
 
     cap.release()
 
