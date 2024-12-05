@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/youtube-asl-a-large-scale.iml" filepath="$PROJECT_DIR$/.idea/youtube-asl-a-large-scale.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ASL-Dataset-Preprocess.iml" filepath="$PROJECT_DIR$/.idea/ASL-Dataset-Preprocess.iml" />
     </modules>
   </component>
 </project>

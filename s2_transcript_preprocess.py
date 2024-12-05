@@ -2,10 +2,10 @@ import os
 import csv
 import json
 import re
+import numpy as np
+import pandas as pd
 
-from conf import *
-
-import re
+import conf as c
 
 
 def clean_text(text):
@@ -20,9 +20,11 @@ def clean_text(text):
         '\r': ' ',
     }
 
-    pattern = re.compile("|".join(map(re.escape, replacements.keys())))
-    text = pattern.sub(lambda x: replacements[x.group()], text)
+    # Replace specific unicode characters
+    pattern = re.compile("|".join(map(re.escape, replacements)))
+    text = pattern.sub(lambda match: replacements[match.group()], text)
 
+    # Remove non-ASCII characters, content within brackets, and extra whitespace
     text = re.sub(r'[^\x00-\x7F]+', '', text)
     text = re.sub(r'\[.*?\]', '', text)
     text = re.sub(r'\s+', ' ', text)
@@ -30,83 +32,93 @@ def clean_text(text):
     return text.lower().strip()
 
 
-def load_transcript_from_json(json_file):
+def load_transcript(json_file):
     with open(json_file, 'r', encoding='utf-8') as file:
-        transcript_data = json.load(file)
-    return transcript_data
+        return json.load(file)
 
-def split_captions(transcript_list, file_name, interval=100):
+
+def split_captions(transcripts, file_name, duration=c.DURATION, overlap=c.OVERLAP):
     result = []
     segment_start = 0
     segment_index = -1
 
-    filtered_transcripts = [t for t in transcript_list if 'text' in t and 'start' in t]
-    if not filtered_transcripts:
+    # Filter transcripts with required keys
+    valid_transcripts = [t for t in transcripts if 'text' in t and 'start' in t]
+    if not valid_transcripts:
         print(f"No valid transcripts for video {file_name}")
         return result
 
-    caption_list = [t["text"] for t in filtered_transcripts]
-    start_list = [t['start'] for t in filtered_transcripts]
+    last_start = valid_transcripts[-1]['start']
 
-    while segment_start < start_list[-1]:
-        condition = lambda x, start, length: start <= x < start + length
-        seg_caption_list = [
-            caption_list[i]
-            for i in range(len(caption_list))
-            if condition(start_list[i], segment_start, interval)
-        ]
-        segment_text = " ".join(seg_caption_list)
-        segment_text = clean_text(segment_text)
+    while segment_start < last_start:
+        segment_end = segment_start + duration
+        seg_texts = []
 
-        # Move to the next segment
-        segment_start += interval * (3 / 4)
+        for t in valid_transcripts:
+            if segment_start <= t['start'] < segment_start + duration:
+                seg_texts.append(t["text"])
+                segment_end = max(segment_end, t['start'] + t.get('duration', 0))
+
+        cleaned_text = clean_text(" ".join(seg_texts))
+        segment_start += duration - overlap
         segment_index += 1
 
-        if not segment_text:
+        if not cleaned_text:
             continue
 
-        sentence_name = f"{file_name}-{segment_index:03d}"
-        result.append({"SENTENCE_NAME": sentence_name, "SENTENCE": segment_text})
+        sentence = {
+            "SENTENCE_NAME": f"{file_name}-{segment_index:03d}",
+            "START": segment_start - (duration - overlap),
+            "END": float(np.ceil(segment_end)),
+            "SENTENCE": cleaned_text
+        }
+        result.append(sentence)
 
-        if caption_list[-1] in seg_caption_list:
+        # Stop if the last transcript is included
+        if valid_transcripts[-1]["text"] in seg_texts:
             break
 
     return result
 
-import pandas as pd
-import csv  # For specifying quoting options
 
 def store_to_csv(video_data, csv_path):
-    # Convert the video data (list of dictionaries) to a DataFrame
     df = pd.DataFrame(video_data)
+    mode = 'a' if os.path.exists(csv_path) else 'w'
+    header = not os.path.exists(csv_path)
 
-    # Write to CSV with quoting
-    if os.path.exists(csv_path):
-        df.to_csv(csv_path, mode='a', header=False, index=False, encoding='utf-8', quoting=csv.QUOTE_ALL)
-    else:
-        df.to_csv(csv_path, mode='w', header=True, index=False, encoding='utf-8', quoting=csv.QUOTE_ALL)
+    df.to_csv(
+        csv_path,
+        mode=mode,
+        header=header,
+        index=False,
+        encoding='utf-8',
+        quoting=csv.QUOTE_ALL
+    )
 
 
-with open(ids_list, 'r', encoding='utf-8') as file:
-    video_ids = [line.strip() for line in file if line.strip()]
+def main():
+    with open(c.ID, 'r', encoding='utf-8') as file:
+        video_ids = [line.strip() for line in file if line.strip()]
 
-print(f"Processing {len(video_ids)} videos.")
+    print(f"Processing {len(video_ids)} videos.")
 
-for video_id in video_ids:
-    try:
-        json_file = os.path.join(transcript_dir, f"{video_id}.json")
-        if not os.path.exists(json_file):
-            continue
+    for video_id in video_ids:
+        try:
+            json_file = os.path.join(c.TRANSCRIPT_DIR, f"{video_id}.json")
+            if not os.path.exists(json_file):
+                continue
 
-        transcript_list = load_transcript_from_json(json_file)
-        if not transcript_list:
-            continue
+            transcripts = load_transcript(json_file)
+            if not transcripts:
+                continue
 
-        split_segments = split_captions(transcript_list, video_id)
-        if split_segments:
-            store_to_csv(split_segments, csv_path)
+            segments = split_captions(transcripts, video_id)
+            if segments:
+                store_to_csv(segments, c.CSV_FILE)
 
-    except Exception as e:
-        print(f"Error processing {video_id}: {e}")
-        continue
+        except Exception as e:
+            print(f"Error processing {video_id}: {e}")
 
+
+if __name__ == "__main__":
+    main()
