@@ -6,13 +6,15 @@ from glob import glob
 
 from conf import *
 
+
 def find_files(directory):
-    files = glob(os.path.join(directory, '*.mp4'))
+    files = glob(os.path.join(directory, "*.mp4"))
     return [os.path.splitext(os.path.basename(file))[0] for file in files]
+
 
 saved_ids = find_files(OUTPUT_DIR)
 
-with open(ID, 'r') as file:
+with open(ID, "r") as file:
     video_ids = [line.strip() for line in file.readlines() if line.strip()]
 
 # Ensure the output directory exists
@@ -21,24 +23,23 @@ if not os.path.exists(OUTPUT_DIR):
 
 # Options to download video at 360p or higher and 10 fps or higher, along with subtitles
 opts = {
-    'format': 'worstvideo[height>=720]/bestvideo[height<=480]',
-    'writesubtitles': False,  # don't download subtitles
-    'outtmpl': f'{VIDEO_DIR}/%(id)s.%(ext)s',  # Output template for video file
-
+    "format": "worstvideo[height>=720]/bestvideo[height<=480]",
+    "writesubtitles": False,  # don't download subtitles
+    "outtmpl": f"{VIDEO_DIR}/%(id)s.%(ext)s",  # Output template for video file
     # optimization options
-    'nocheckcertificate': True,  # Avoid SSL certificate verification (optional)
-    'noplaylist': True,  # Don't download playlist if the URL is a playlist
-    'no-metadata-json': True,  # Skip writing metadata JSON files
-    'no-metadata': True,  # Avoid downloading extra metadata
-    'concurrent-fragments': 3,  # Download multiple video fragments at once (for fragmented videos)
-    'hls-prefer-ffmpeg': True,  # Prefer using ffmpeg for HLS streams (often faster)
-    'http-chunk-size': 10485760,  # Download in 10MB chunks to speed up large downloads
-    'sleep-interval': 0,  # No waiting between requests
-    'geo-bypass': True,  # Avoid geographic restrictions
-
+    "nocheckcertificate": True,  # Avoid SSL certificate verification (optional)
+    "noplaylist": True,  # Don't download playlist if the URL is a playlist
+    "no-metadata-json": True,  # Skip writing metadata JSON files
+    "no-metadata": True,  # Avoid downloading extra metadata
+    "concurrent-fragments": 3,  # Download multiple video fragments at once (for fragmented videos)
+    "hls-prefer-ffmpeg": True,  # Prefer using ffmpeg for HLS streams (often faster)
+    "http-chunk-size": 10485760,  # Download in 10MB chunks to speed up large downloads
+    "sleep-interval": 0,  # No waiting between requests
+    "geo-bypass": True,  # Avoid geographic restrictions
     # prevent throttling
-    'limit_rate': '5M'
+    "limit_rate": "5M",
 }
+
 
 # Function to download the video, get resolution and fps, and store captions in a variable
 def download_video(video_dir, output_dir, video_id):
@@ -59,4 +60,3 @@ for video_id in video_ids:
     else:
         print(f"Video {video_id} already downloaded")
         continue
-
