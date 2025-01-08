@@ -4,8 +4,9 @@ import mediapipe as mp
 import numpy as np
 import logging
 from glob import glob
-from typing import List
+from typing import List, Dict
 from concurrent.futures import ProcessPoolExecutor
+import pandas as pd
 
 import conf as c
 
@@ -13,6 +14,22 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 mp_holistic = mp.solutions.holistic
+
+
+def load_transcript(csv_file: str) -> Dict[str, List[float]]:
+    """Load the CSV file and return a dictionary mapping SENTENCE_NAME to [START, END]."""
+    try:
+        df = pd.read_csv(csv_file, delimiter=",", on_bad_lines="skip")[
+            ["SENTENCE_NAME", "START", "END"]
+        ].dropna()
+        return (
+            df.set_index("SENTENCE_NAME")[["START", "END"]]
+            .apply(lambda row: [row["START"], row["END"]], axis=1)
+            .to_dict()
+        )
+    except Exception as e:
+        logger.error(f"Error loading CSV file {csv_file}: {e}")
+        return {}
 
 
 def find_video_files(directory: str, pattern="*.mp4") -> List[str]:
@@ -62,10 +79,16 @@ def process_video(video_path: str, output_file: str):
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    frame_skip = 1
 
-    if total_frames > c.MAX_FRAME:
+    if c.LENGTH_BASED_MAX_FRAME and c.LENGTH_BASED_FRAME_SKIP:
+        logger.error("Both LENGTH_BASED_MAX_FRAME and LENGTH_BASED_CONST are True.")
+        return
+    if c.LENGTH_BASED_MAX_FRAME:
         frame_skip = np.ceil(total_frames / c.MAX_FRAME)
+    if c.LENGTH_BASED_FRAME_SKIP:
+        frame_skip = c.FRAME_SKIP
+    else:
+        frame_skip = 1
 
     all_landmarks = []
     with mp_holistic.Holistic(
