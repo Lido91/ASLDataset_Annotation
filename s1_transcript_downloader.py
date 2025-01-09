@@ -3,37 +3,49 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
 from glob import glob
 import os
-import conf as c
+import conf as c  # Keeping original conf import name
 
 
-def find_files(directory):
-    files = glob(os.path.join(directory, "*.json"))
-    return [os.path.splitext(os.path.basename(file))[0] for file in files]
+def get_existing_transcripts(directory):
+    """
+    Retrieves a list of video IDs that already have transcripts saved.
+
+    Args:
+        directory (str): Path to the directory containing transcript files
+
+    Returns:
+        list: List of video IDs with existing transcripts (without file extensions)
+    """
+    transcript_files = glob(os.path.join(directory, "*.json"))
+    return [os.path.splitext(os.path.basename(file))[0] for file in transcript_files]
 
 
-saved_ids = find_files(c.TRANSCRIPT_DIR)
+previously_saved_transcripts = get_existing_transcripts(c.TRANSCRIPT_DIR)
 
+# Read target video IDs from input file
 with open(c.ID, "r") as file:
-    video_ids = [line.strip() for line in file.readlines() if line.strip()]
+    target_video_ids = [line.strip() for line in file.readlines() if line.strip()]
 
-formatter = JSONFormatter()
+# Initialize JSON formatter for transcript conversion
+transcript_formatter = JSONFormatter()
 
-for video_id in video_ids:
-    if video_id not in saved_ids:
+# Process each video ID and save its transcript
+for video_id in target_video_ids:
+    if video_id not in previously_saved_transcripts:
         try:
-            time.sleep(2)
-            # Must be a single transcript.
-            transcript = YouTubeTranscriptApi.get_transcript(
+            time.sleep(2)  # Rate limiting pause
+            # Fetch transcript in specified language
+            transcript_data = YouTubeTranscriptApi.get_transcript(
                 video_id, languages=c.LANGUAGE
             )
-            # .format_transcript(transcript) turns the transcript into a JSON string.
-            json_formatted = formatter.format_transcript(transcript)
 
-            # Now we can write it out to a file.
-            with open(
-                f"{c.TRANSCRIPT_DIR}/{video_id}.json", "w", encoding="utf-8"
-            ) as json_file:
-                json_file.write(json_formatted)
+            # Convert transcript to JSON format
+            json_transcript = transcript_formatter.format_transcript(transcript_data)
+
+            # Save formatted transcript to file
+            transcript_path = f"{c.TRANSCRIPT_DIR}/{video_id}.json"
+            with open(transcript_path, "w", encoding="utf-8") as json_file:
+                json_file.write(json_transcript)
 
             print(f"SUCCESSFUL! {video_id} transcript saved successfully.")
         except Exception as e:

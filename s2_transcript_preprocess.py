@@ -5,11 +5,21 @@ import re
 import numpy as np
 import pandas as pd
 
-import conf as c
+import conf as c  # Keeping original conf import name
 
 
-def clean_text(text):
-    replacements = {
+def normalize_text(text):
+    """
+    Normalizes text by replacing Unicode characters, removing non-ASCII characters,
+    bracketed content, and standardizing whitespace.
+
+    Args:
+        text (str): Input text to be normalized
+
+    Returns:
+        str: Cleaned and normalized text in lowercase
+    """
+    unicode_mappings = {
         "\u201c": '"',
         "\u201d": '"',
         "\u2014": "-",
@@ -20,69 +30,101 @@ def clean_text(text):
         "\r": " ",
     }
 
-    # Replace specific unicode characters
-    pattern = re.compile("|".join(map(re.escape, replacements)))
-    text = pattern.sub(lambda match: replacements[match.group()], text)
+    # Replace Unicode characters with ASCII equivalents
+    pattern = re.compile("|".join(map(re.escape, unicode_mappings)))
+    text = pattern.sub(lambda match: unicode_mappings[match.group()], text)
 
-    # Remove non-ASCII characters, content within brackets, and extra whitespace
-    text = re.sub(r"[^\x00-\x7F]+", "", text)
-    text = re.sub(r"\[.*?\]", "", text)
-    text = re.sub(r"\s+", " ", text)
+    # Clean text using regex patterns
+    text = re.sub(r"[^\x00-\x7F]+", "", text)  # Remove non-ASCII
+    text = re.sub(r"\[.*?\]", "", text)  # Remove bracketed content
+    text = re.sub(r"\s+", " ", text)  # Standardize whitespace
 
     return text.lower().strip()
 
 
-def load_transcript(json_file):
+def read_transcript_file(json_file):
+    """
+    Reads and parses a JSON transcript file.
+
+    Args:
+        json_file (str): Path to JSON transcript file
+
+    Returns:
+        list: Transcript data as a list of dictionaries
+    """
     with open(json_file, "r", encoding="utf-8") as file:
         return json.load(file)
 
 
-def split_captions(transcripts, file_name, duration=c.DURATION, overlap=c.OVERLAP):
-    result = []
+def process_transcript_segments(
+    transcripts, video_id, duration=c.DURATION, overlap=c.OVERLAP
+):
+    """
+    Splits transcript into overlapping segments of specified duration.
+
+    Args:
+        transcripts (list): List of transcript dictionaries
+        video_id (str): Video identifier for naming segments
+        duration (float): Length of each segment in seconds
+        overlap (float): Overlap duration between segments
+
+    Returns:
+        list: List of segmented and processed transcript dictionaries
+    """
+    processed_segments = []
     segment_start = 0
     segment_index = -1
 
-    # Filter transcripts with required keys
-    valid_transcripts = [t for t in transcripts if "text" in t and "start" in t]
-    if not valid_transcripts:
-        print(f"No valid transcripts for video {file_name}")
-        return result
+    # Filter valid transcript entries
+    valid_entries = [t for t in transcripts if "text" in t and "start" in t]
+    if not valid_entries:
+        print(f"No valid transcripts for video {video_id}")
+        return processed_segments
 
-    last_start = valid_transcripts[-1]["start"]
+    final_timestamp = valid_entries[-1]["start"]
 
-    while segment_start < last_start:
+    while segment_start < final_timestamp:
         segment_end = segment_start + duration
-        seg_texts = []
+        segment_texts = []
 
-        for t in valid_transcripts:
-            if segment_start <= t["start"] < segment_start + duration:
-                seg_texts.append(t["text"])
-                segment_end = max(segment_end, t["start"] + t.get("duration", 0))
+        # Collect text within current segment window
+        for entry in valid_entries:
+            if segment_start <= entry["start"] < segment_start + duration:
+                segment_texts.append(entry["text"])
+                segment_end = max(
+                    segment_end, entry["start"] + entry.get("duration", 0)
+                )
 
-        cleaned_text = clean_text(" ".join(seg_texts))
+        processed_text = normalize_text(" ".join(segment_texts))
         segment_start += duration - overlap
         segment_index += 1
 
-        if not cleaned_text:
+        if not processed_text:
             continue
 
-        sentence = {
-            "SENTENCE_NAME": f"{file_name}-{segment_index:03d}",
+        segment_data = {
+            "SENTENCE_NAME": f"{video_id}-{segment_index:03d}",
             "START": segment_start - (duration - overlap),
             "END": float(np.ceil(segment_end)),
-            "SENTENCE": cleaned_text,
+            "SENTENCE": processed_text,
         }
-        result.append(sentence)
+        processed_segments.append(segment_data)
 
-        # Stop if the last transcript is included
-        if valid_transcripts[-1]["text"] in seg_texts:
+        if valid_entries[-1]["text"] in segment_texts:
             break
 
-    return result
+    return processed_segments
 
 
-def store_to_csv(video_data, csv_path):
-    df = pd.DataFrame(video_data)
+def save_segments_to_csv(segment_data, csv_path):
+    """
+    Saves processed transcript segments to CSV file, appending if file exists.
+
+    Args:
+        segment_data (list): List of segment dictionaries to save
+        csv_path (str): Path to target CSV file
+    """
+    df = pd.DataFrame(segment_data)
     mode = "a" if os.path.exists(csv_path) else "w"
     header = not os.path.exists(csv_path)
 
@@ -97,6 +139,10 @@ def store_to_csv(video_data, csv_path):
 
 
 def main():
+    """
+    Main function to process video transcripts into segmented CSV data.
+    Reads video IDs, processes their transcripts, and saves the results.
+    """
     with open(c.ID, "r", encoding="utf-8") as file:
         video_ids = [line.strip() for line in file if line.strip()]
 
@@ -108,13 +154,13 @@ def main():
             if not os.path.exists(json_file):
                 continue
 
-            transcripts = load_transcript(json_file)
-            if not transcripts:
+            transcript_data = read_transcript_file(json_file)
+            if not transcript_data:
                 continue
 
-            segments = split_captions(transcripts, video_id)
-            if segments:
-                store_to_csv(segments, c.CSV_FILE)
+            processed_segments = process_transcript_segments(transcript_data, video_id)
+            if processed_segments:
+                save_segments_to_csv(processed_segments, c.CSV_FILE)
 
         except Exception as e:
             print(f"Error processing {video_id}: {e}")
