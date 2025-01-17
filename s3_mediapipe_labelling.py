@@ -25,12 +25,12 @@ def read_timestamp_data(csv_file: str) -> Dict[str, List[float]]:
         Dict[str, List[float]]: Dictionary mapping segment names to [start, end] timestamps
     """
     try:
-        df = pd.read_csv(csv_file, delimiter=",", on_bad_lines="skip")[
-            ["SENTENCE_NAME", "START", "END"]
+        df = pd.read_csv(csv_file, delimiter="\t", on_bad_lines="skip")[
+            ["SENTENCE_NAME", "START_REALIGNED", "END_REALIGNED"]
         ].dropna()
         return (
-            df.set_index("SENTENCE_NAME")[["START", "END"]]
-            .apply(lambda row: [row["START"], row["END"]], axis=1)
+            df.set_index("SENTENCE_NAME")[["START_REALIGNED", "END_REALIGNED"]]
+            .apply(lambda row: [row["START_REALIGNED"], row["END_REALIGNED"]], axis=1)
             .to_dict()
         )
     except Exception as e:
@@ -135,7 +135,7 @@ def process_video_segment(
 
     # Determine frame skip rate based on video FPS
     fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_skip = 6 if fps > 60 else (4 if fps > 40 else (2 if fps > 20 else 1))
+    frame_skip = 1 if fps <= 16 else c.FRAME_SKIP
 
     # Calculate frame ranges
     start_frame, end_frame = int(start_time * fps), int(end_time * fps)

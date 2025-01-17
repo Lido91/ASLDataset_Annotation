@@ -18,13 +18,15 @@ H2S_CSV_FILE = "dataset/how2sign/how2sign_realigned_val.csv"
 # youtube asl dataset
 ROOT = os.path.dirname(os.path.abspath(__file__))
 ID = "youtube-asl_youtube_asl_video_ids.txt"
+
 VIDEO_DIR = f"{ROOT}/dataset/origin/"
 OUTPUT_DIR = f"{ROOT}/dataset/npy/"
+CSV_FILE = f"youtube_asl.csv"
+
 TRANSCRIPT_DIR = f"{ROOT}/dataset/transcript/"
-CSV_FILE = f"video_info.csv"
 DURATION = 16
 OVERLAP = 4
-MAX_WORKERS = 8
+MAX_WORKERS = 2
 LANGUAGE = [
     "en",
     "ase",
