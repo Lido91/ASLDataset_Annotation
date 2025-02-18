@@ -39,7 +39,7 @@ def normalize_text(text):
     text = re.sub(r"\[.*?\]", "", text)  # Remove bracketed content
     text = re.sub(r"\s+", " ", text)  # Standardize whitespace
 
-    return text.lower().strip()
+    return text.strip()
 
 
 def read_transcript_file(json_file):
