@@ -1,19 +1,7 @@
 import os
 
-# gpu setting
-USE_GPU = True
-
-
-# video parameters
-LENGTH_BASED_MAX_FRAME = True
-LENGTH_BASED_FRAME_SKIP = False
+# the number of frames to skip when extracting frames from a video
 FRAME_SKIP = 2
-MAX_FRAME = 512
-
-# how2sign dataset
-H2S_VIDEO_DIR = "dataset/how2sign/val_raw_videos/raw_videos"
-H2S_OUTPUT_DIR = "dataset/how2sign/npy/"
-H2S_CSV_FILE = "dataset/how2sign/how2sign_realigned_val.csv"
 
 # youtube asl dataset
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -24,8 +12,6 @@ OUTPUT_DIR = f"{ROOT}/dataset/npy/"
 CSV_FILE = f"youtube_asl.csv"
 
 TRANSCRIPT_DIR = f"{ROOT}/dataset/transcript/"
-DURATION = 16
-OVERLAP = 4
 MAX_WORKERS = 2
 LANGUAGE = [
     "en",
