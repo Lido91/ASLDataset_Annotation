@@ -12,8 +12,9 @@ import time
 import logging
 from glob import glob
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError, ExtractorError, PostProcessingError, UnavailableVideoError
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api import CouldNotRetrieveTranscript, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, TooManyRequests
+from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, TooManyRequests
 from youtube_transcript_api.formatters import JSONFormatter
 from tqdm import tqdm
 
@@ -61,8 +62,6 @@ def download_transcripts():
             with open(transcript_path, "w", encoding="utf-8") as out_file:
                 out_file.write(json_transcript)
             logger.info("SUCCESS: Transcript for %s saved.", video_id)
-        except CouldNotRetrieveTranscript as e:
-            logger.error("Could not retrieve transcript for %s. Error: %s", video_id, e)
         except TranscriptsDisabled as e:
             logger.error("Transcripts are disabled for %s. Error: %s", video_id, e)
         except NoTranscriptFound as e:
@@ -83,8 +82,16 @@ def process_youtube_video(video_id, download_options):
         with YoutubeDL(download_options) as yt:
             yt.extract_info(video_url)
         logger.info("SUCCESS: Video %s downloaded.", video_id)
+    except DownloadError as e:
+        logger.error("Download error for video %s. Error: %s", video_id, e)
+    except ExtractorError as e:
+        logger.error("Extractor error for video %s. Error: %s", video_id, e)
+    except PostProcessingError as e:
+        logger.error("Post-processing error for video %s. Error: %s", video_id, e)
+    except UnavailableVideoError as e:
+        logger.error("Video %s is unavailable. Error: %s", video_id, e)
     except Exception as e:
-        logger.error("FAILED: Video %s download failed. Error: %s", video_id, e)
+        logger.error("An unexpected error occurred for video %s. Error: %s", video_id, e)
 
 
 def download_videos():
