@@ -12,9 +12,19 @@ import time
 import logging
 from glob import glob
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError, ExtractorError, PostProcessingError, UnavailableVideoError
+from yt_dlp.utils import (
+    DownloadError,
+    ExtractorError,
+    PostProcessingError,
+    UnavailableVideoError,
+)
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, TooManyRequests
+from youtube_transcript_api import (
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    TooManyRequests,
+)
 from youtube_transcript_api.formatters import JSONFormatter
 from tqdm import tqdm
 
@@ -56,7 +66,9 @@ def download_transcripts():
     for video_id in tqdm(list(ids), desc="Downloading transcripts"):
         try:
             time.sleep(sleep_time)  # Rate limiting pause
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=c.LANGUAGE)
+            transcript = YouTubeTranscriptApi.get_transcript(
+                video_id, languages=c.LANGUAGE
+            )
             json_transcript = formatter.format_transcript(transcript)
             transcript_path = os.path.join(c.TRANSCRIPT_DIR, f"{video_id}.json")
             with open(transcript_path, "w", encoding="utf-8") as out_file:
@@ -65,7 +77,7 @@ def download_transcripts():
         except TranscriptsDisabled as e:
             logger.error("Transcripts are disabled for %s. Error: %s", video_id, e)
         except NoTranscriptFound as e:
-            logger.error("No transcript found for %s in the specified languages. Error: %s", video_id, e)
+            logger.error("No transcript %s in specified langs. Error: %s", video_id, e)
         except VideoUnavailable as e:
             logger.error("Video %s is unavailable. Error: %s", video_id, e)
         except TooManyRequests as e:
@@ -75,7 +87,7 @@ def download_transcripts():
             logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
 
 
-def process_youtube_video(video_id, download_options):
+def download_single_video(video_id, download_options):
     """Download a YouTube video using specified options."""
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
@@ -91,41 +103,33 @@ def process_youtube_video(video_id, download_options):
     except UnavailableVideoError as e:
         logger.error("Video %s is unavailable. Error: %s", video_id, e)
     except Exception as e:
-        logger.error("An unexpected error occurred for video %s. Error: %s", video_id, e)
+        logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
 
 
 def download_videos():
     """Download videos for video IDs specified in conf.ID if not already downloaded."""
-    os.makedirs(c.OUTPUT_DIR, exist_ok=True)
     os.makedirs(c.VIDEO_DIR, exist_ok=True)
-    existing_ids = get_existing_ids(c.OUTPUT_DIR, "mp4")
+    existing_ids = get_existing_ids(c.VIDEO_DIR, "mp4")
 
     with open(c.ID, "r", encoding="utf-8") as f:
         all_ids = {line.strip() for line in f if line.strip()}
 
-    ids = all_ids - existing_ids
+    ids = list(all_ids - existing_ids)
 
-    for video_id in ids:
-        time.sleep(1)  # Rate limiting pause
-        process_youtube_video(video_id, download_options)
+    if not ids:
+        logger.info("All videos have already been downloaded.")
+        return
 
+    error_count = 0
+    # Use tqdm progress bar to show progress
+    with tqdm(ids, desc="Downloading videos", unit="video") as pbar:
+        for video_id in pbar:
+            time.sleep(1)  # Rate limiting pause
+            if not download_single_video(video_id, c.YT_CONFIG):
+                error_count += 1
+            pbar.set_postfix(errors=error_count)
 
-# Global YouTube download configuration
-download_options = {
-    "format": "worstvideo[height>=720]/bestvideo[height<=480]",
-    "writesubtitles": False,
-    "outtmpl": os.path.join(c.VIDEO_DIR, "%(id)s.%(ext)s"),
-    "nocheckcertificate": True,
-    "noplaylist": True,
-    "no-metadata-json": True,
-    "no-metadata": True,
-    "concurrent-fragments": 5,
-    "hls-prefer-ffmpeg": True,
-    "http-chunk-size": 10485760,  # 10MB chunks
-    "sleep-interval": 0,
-    "geo-bypass": True,
-    "limit_rate": "5M",
-}
+    logger.info("Video download completed: Total %d, Errors %d.", error_count)
 
 
 def main():

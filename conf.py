@@ -1,5 +1,22 @@
 import os
 
+# YouTube download configuration
+YT_CONFIG = {
+    "format": "worstvideo[height>=720]/bestvideo[height<=480]",
+    "writesubtitles": False,
+    "outtmpl": os.path.join(c.VIDEO_DIR, "%(id)s.%(ext)s"),
+    "nocheckcertificate": True,
+    "noplaylist": True,
+    "no-metadata-json": True,
+    "no-metadata": True,
+    "concurrent-fragments": 5,
+    "hls-prefer-ffmpeg": True,
+    "http-chunk-size": 10485760,  # 10MB chunks
+    "sleep-interval": 0,
+    "geo-bypass": True,
+    "limit_rate": "5M",
+}
+
 # the number of frames to skip when extracting frames from a video
 FRAME_SKIP = 2
 
