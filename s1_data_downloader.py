@@ -44,16 +44,37 @@ def get_existing_ids(directory, ext):
     return {os.path.splitext(os.path.basename(f))[0] for f in files}
 
 
+def load_video_ids(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        return {line.strip() for line in f if line.strip()}
+
+
+def download_single_transcript(video_id, formatter, sleep_time):
+    """Download a single transcript for a video ID."""
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=c.LANGUAGE)
+        json_transcript = formatter.format_transcript(transcript)
+        transcript_path = os.path.join(c.TRANSCRIPT_DIR, f"{video_id}.json")
+        with open(transcript_path, "w", encoding="utf-8") as out_file:
+            out_file.write(json_transcript)
+        logger.info("SUCCESS: Transcript for %s saved.", video_id)
+        return True, sleep_time
+    except TooManyRequests as e:
+        sleep_time += 0.1  # Slightly increase delay on error
+        logger.error("Too many requests for %s. Error: %s", video_id, e)
+        return False, sleep_time
+    except Exception as e:
+        logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
+        return False, sleep_time
+
+
 def download_transcripts():
     """Download transcripts for video IDs in conf.ID if not already saved."""
     os.makedirs(c.TRANSCRIPT_DIR, exist_ok=True)
     existing_ids = get_existing_ids(c.TRANSCRIPT_DIR, "json")
 
-    # Read target video IDs and remove those already downloaded
-    with open(c.ID, "r", encoding="utf-8") as f:
-        all_ids = {line.strip() for line in f if line.strip()}
-
-    ids = all_ids - existing_ids
+    all_ids = load_video_ids(c.ID)
+    ids = list(all_ids - existing_ids)
 
     if not ids:
         logger.info("All transcripts are already downloaded.")
@@ -61,30 +82,21 @@ def download_transcripts():
 
     formatter = JSONFormatter()
     sleep_time = 0.2
+    error_count = 0
 
     # Use a progress bar to show download progress
-    for video_id in tqdm(list(ids), desc="Downloading transcripts"):
-        try:
+    with tqdm(ids, desc="Downloading transcripts") as pbar:
+        for video_id in pbar:
+            sleep_time = min(sleep_time, 2)
             time.sleep(sleep_time)  # Rate limiting pause
-            transcript = YouTubeTranscriptApi.get_transcript(
-                video_id, languages=c.LANGUAGE
+            success, sleep_time = download_single_transcript(
+                video_id, formatter, sleep_time
             )
-            json_transcript = formatter.format_transcript(transcript)
-            transcript_path = os.path.join(c.TRANSCRIPT_DIR, f"{video_id}.json")
-            with open(transcript_path, "w", encoding="utf-8") as out_file:
-                out_file.write(json_transcript)
-            logger.info("SUCCESS: Transcript for %s saved.", video_id)
-        except TranscriptsDisabled as e:
-            logger.error("Transcripts are disabled for %s. Error: %s", video_id, e)
-        except NoTranscriptFound as e:
-            logger.error("No transcript %s in specified langs. Error: %s", video_id, e)
-        except VideoUnavailable as e:
-            logger.error("Video %s is unavailable. Error: %s", video_id, e)
-        except TooManyRequests as e:
-            sleep_time += 0.2  # Slightly increase delay on error
-            logger.error("Too many requests for %s. Error: %s", video_id, e)
-        except Exception as e:
-            logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
+
+            if not success:
+                error_count += 1
+
+            pbar.set_postfix(errors=error_count)
 
 
 def download_single_video(video_id, download_options):
@@ -94,26 +106,27 @@ def download_single_video(video_id, download_options):
         with YoutubeDL(download_options) as yt:
             yt.extract_info(video_url)
         logger.info("SUCCESS: Video %s downloaded.", video_id)
-    except DownloadError as e:
-        logger.error("Download error for video %s. Error: %s", video_id, e)
-    except ExtractorError as e:
-        logger.error("Extractor error for video %s. Error: %s", video_id, e)
-    except PostProcessingError as e:
-        logger.error("Post-processing error for video %s. Error: %s", video_id, e)
-    except UnavailableVideoError as e:
-        logger.error("Video %s is unavailable. Error: %s", video_id, e)
+        return True
+    except (
+        DownloadError,
+        ExtractorError,
+        PostProcessingError,
+        UnavailableVideoError,
+    ) as e:
+        logger.error("Error downloading video %s. Error: %s", video_id, e)
+        return False
     except Exception as e:
         logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
+        return False
 
 
 def download_videos():
     """Download videos for video IDs specified in conf.ID if not already downloaded."""
+    os.makedirs(c.OUTPUT_DIR, exist_ok=True)
     os.makedirs(c.VIDEO_DIR, exist_ok=True)
-    existing_ids = get_existing_ids(c.VIDEO_DIR, "mp4")
+    existing_ids = get_existing_ids(c.OUTPUT_DIR, "mp4")
 
-    with open(c.ID, "r", encoding="utf-8") as f:
-        all_ids = {line.strip() for line in f if line.strip()}
-
+    all_ids = load_video_ids(c.ID)
     ids = list(all_ids - existing_ids)
 
     if not ids:
@@ -124,8 +137,9 @@ def download_videos():
     # Use tqdm progress bar to show progress
     with tqdm(ids, desc="Downloading videos", unit="video") as pbar:
         for video_id in pbar:
-            time.sleep(1)  # Rate limiting pause
-            if not download_single_video(video_id, c.YT_CONFIG):
+            time.sleep(0.2)  # Rate limiting pause
+            success = download_single_video(video_id, c.YT_CONFIG)
+            if not success:
                 error_count += 1
             pbar.set_postfix(errors=error_count)
 
