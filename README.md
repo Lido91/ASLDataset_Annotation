@@ -1,6 +1,6 @@
 # ASL Translation Data Preprocessing<!-- omit from toc -->
 
-This repository provides a comprehensive solution for preprocessing American Sign Language (ASL) datasets, designed to handle both **How2Sign** and **YouTube-ASL** datasets. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
+This repository provides a  solution for preprocessing American Sign Language (ASL) datasets, following the method from ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162) which is designed to handle both **YouTube-ASL** and **How2Sign** datasets. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
 
 ## Table of Contents<!-- omit from toc -->
 
