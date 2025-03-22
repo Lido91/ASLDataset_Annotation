@@ -1,6 +1,6 @@
-# ASL Translation Data Preprocessing<!-- omit from toc -->
+# How2sign & Youtube-ASL Dataset Preprocess <!-- omit from toc -->
 
-This repository provides a  solution for preprocessing American Sign Language (ASL) datasets, following the method from ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162) which is designed to handle both **YouTube-ASL** and **How2Sign** datasets. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
+This repository follows the method from ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162) which is designed to handle both **YouTube-ASL** and **How2Sign** datasets through **MediaPipe Holistic**. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
 
 ## Table of Contents<!-- omit from toc -->
 
@@ -54,7 +54,7 @@ All project settings are managed through `conf.py`, offering a single configurat
 ## Dataset Introduction
 
 ### YouTube-ASL Dataset
-- **Video List**: [GitHub Repository](https://github.com/google-research/google-research/blob/master/youtube_asl/README.md)
+- **Video List**: [google-research/youtube_asl](https://github.com/google-research/google-research/blob/master/youtube_asl/README.md)
 - **Paper**: ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162)
 
 If you use YouTube-ASL, please cite their associated paper:
