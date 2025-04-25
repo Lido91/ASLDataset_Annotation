@@ -27,7 +27,7 @@ All project settings are managed through `conf.py`, offering a single configurat
 - `FRAME_SKIP`: Controls frame sampling rate for efficient processing
 - `MAX_WORKERS`: Manages parallel processing to optimize performance
 
-- `POSE_IDX`, `FACE_IDX`, `HAND_IDX`: Selected landmark indices for extracting relevant points for sign language analysis
+- `POSE_IDX`, `FACE_IDX`, `HAND_IDX`: Selected landmark indices for extracting relevant points for sign language analysis. Devault value is the index defined in YouTube-ASL Dataset's research paper.
 
 ## How to Use
 
@@ -47,7 +47,7 @@ All project settings are managed through `conf.py`, offering a single configurat
 - The script processes each video segment according to its timestamp, extracting only the most relevant body keypoints for sign language analysis. It uses parallel processing to handle multiple video efficiently. Results are saved as NumPy arrays.
 
 ### How2Sign
-1. Download **Green Screen RGB videos** and **English Translation (manually re-aligned)** from the How2Sign website.
+1. Download **Green Screen RGB videos** and **English Translation (manually re-aligned)** from the [How2Sign Website](https://how2sign.github.io/).
 2. Place the directory and .csv file in the correct path or amend the path in `conf.py`.
 3. Run **Step 3: Feature Extraction** (`s3_mediapipe_labelling.py`) only.
 
