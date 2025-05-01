@@ -1,4 +1,4 @@
-# How2sign & Youtube-ASL Dataset Preprocess <!-- omit from toc -->
+# ASL Preprocessing Using MediaPipe <!-- omit from toc -->
 
 This repository follows the method from ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162) which is designed to handle both **YouTube-ASL** and **How2Sign** datasets through **MediaPipe Holistic**. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
 
@@ -9,8 +9,6 @@ This repository follows the method from ["YouTube-ASL: A Large-Scale, Open-Domai
   - [YouTube-ASL](#youtube-asl)
   - [How2Sign](#how2sign)
 - [Dataset Introduction](#dataset-introduction)
-  - [YouTube-ASL Dataset](#youtube-asl-dataset)
-  - [How2Sign Dataset](#how2sign-dataset)
 
 ## Project Configuration
 
