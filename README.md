@@ -1,6 +1,6 @@
-# ASL Translation Data Preprocessing<!-- omit from toc -->
+# ASL Preprocessing Using MediaPipe <!-- omit from toc -->
 
-This repository provides a comprehensive solution for preprocessing American Sign Language (ASL) datasets, designed to handle both **How2Sign** and **YouTube-ASL** datasets. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
+This repository follows the method from ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162) which is designed to handle both **YouTube-ASL** and **How2Sign** datasets through **MediaPipe Holistic**. Our pipeline streamlines the workflow from video acquisition to landmark extraction, preparing the data for ASL translation tasks.
 
 ## Table of Contents<!-- omit from toc -->
 
@@ -9,8 +9,6 @@ This repository provides a comprehensive solution for preprocessing American Sig
   - [YouTube-ASL](#youtube-asl)
   - [How2Sign](#how2sign)
 - [Dataset Introduction](#dataset-introduction)
-  - [YouTube-ASL Dataset](#youtube-asl-dataset)
-  - [How2Sign Dataset](#how2sign-dataset)
 
 ## Project Configuration
 
@@ -27,7 +25,7 @@ All project settings are managed through `conf.py`, offering a single configurat
 - `FRAME_SKIP`: Controls frame sampling rate for efficient processing
 - `MAX_WORKERS`: Manages parallel processing to optimize performance
 
-- `POSE_IDX`, `FACE_IDX`, `HAND_IDX`: Selected landmark indices for extracting relevant points for sign language analysis
+- `POSE_IDX`, `FACE_IDX`, `HAND_IDX`: Selected landmark indices for extracting relevant points for sign language analysis. Devault value is the index defined in YouTube-ASL Dataset's research paper.
 
 ## How to Use
 
@@ -47,14 +45,14 @@ All project settings are managed through `conf.py`, offering a single configurat
 - The script processes each video segment according to its timestamp, extracting only the most relevant body keypoints for sign language analysis. It uses parallel processing to handle multiple video efficiently. Results are saved as NumPy arrays.
 
 ### How2Sign
-1. Download **Green Screen RGB videos** and **English Translation (manually re-aligned)** from the How2Sign website.
+1. Download **Green Screen RGB videos** and **English Translation (manually re-aligned)** from the [How2Sign Website](https://how2sign.github.io/).
 2. Place the directory and .csv file in the correct path or amend the path in `conf.py`.
 3. Run **Step 3: Feature Extraction** (`s3_mediapipe_labelling.py`) only.
 
 ## Dataset Introduction
 
 ### YouTube-ASL Dataset
-- **Video List**: [GitHub Repository](https://github.com/google-research/google-research/blob/master/youtube_asl/README.md)
+- **Video List**: [google-research/youtube_asl](https://github.com/google-research/google-research/blob/master/youtube_asl/README.md)
 - **Paper**: ["YouTube-ASL: A Large-Scale, Open-Domain American Sign Language-English Parallel Corpus" (Uthus et al., 2023)](https://arxiv.org/abs/2306.15162)
 
 If you use YouTube-ASL, please cite their associated paper:
