@@ -177,14 +177,14 @@ def main():
     """
     timestamp_data = read_timestamp_data(c.CSV_FILE)
     video_files = get_video_filenames(c.VIDEO_DIR)
-    processed_files = get_video_filenames(c.OUTPUT_DIR, pattern="*.npy")
+    processed_files = get_video_filenames(c.NPY_DIR, pattern="*.npy")
 
     processing_tasks = []
     for segment_id, (start, end) in timestamp_data.items():
         video_id = segment_id.split("-")[0]
         if video_id in video_files:
             video_path = os.path.join(c.VIDEO_DIR, f"{video_id}.mp4")
-            output_path = os.path.join(c.OUTPUT_DIR, f"{segment_id}.npy")
+            output_path = os.path.join(c.NPY_DIR, f"{segment_id}.npy")
             if segment_id not in processed_files:
                 processing_tasks.append((video_path, start, end, output_path))
             else:

@@ -1,0 +1,7 @@
+yt-dlp
+youtube-transcript-api
+tqdm
+numpy
+pandas
+opencv-python
+mediapipe
