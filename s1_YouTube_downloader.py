@@ -6,7 +6,7 @@ This script downloads YouTube transcripts and videos for video IDs specified in 
 Transcripts are downloaded first (if not already saved) and then videos are downloaded
 (if not already present). Logging is used to provide detailed debugging information.
 """
-
+import pdb
 import os
 import time
 import logging
@@ -20,10 +20,17 @@ from yt_dlp.utils import (
 )
 import youtube_transcript_api as transcript_api
 from youtube_transcript_api import YouTubeTranscriptApi, YouTubeTranscriptApiException
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from youtube_transcript_api.formatters import JSONFormatter
 from tqdm import tqdm
 
 import conf as c  # Using 'c' for configuration
+
+
+
+
+
+# all requests done by ytt_api will now be proxied through Webshare
 
 # Configure logging for debugging
 logging.basicConfig(
@@ -69,7 +76,19 @@ def _get_transcript_client():
     global _TRANSCRIPT_CLIENT
     if _TRANSCRIPT_CLIENT is None:
         try:
-            _TRANSCRIPT_CLIENT = YouTubeTranscriptApi()
+
+        #    ytt_api =  YouTubeTranscriptApi(
+        #     proxy_config=WebshareProxyConfig(
+        #         proxy_username="lcscpexh",
+        #         proxy_password="g7ps7b6zgt1f",
+        #     )
+        #    )
+        #    print('Proxy Used')
+
+           
+           _TRANSCRIPT_CLIENT = YouTubeTranscriptApi()
+
+
         except TypeError:
             _TRANSCRIPT_CLIENT = YouTubeTranscriptApi
     return _TRANSCRIPT_CLIENT
@@ -77,7 +96,9 @@ def _get_transcript_client():
 
 def _fetched_to_dicts(fetched):
     if hasattr(fetched, "to_raw_data"):
+        return fetched
         return fetched.to_raw_data()
+
     if isinstance(fetched, list):
         return fetched
     try:
@@ -107,11 +128,16 @@ def fetch_transcript(video_id):
 
     languages_for_fetch = languages or ["en"]
     fetched = _get_transcript_client().fetch(video_id, languages=languages_for_fetch)
+    # pdb.set_trace()
     return _fetched_to_dicts(fetched)
 
 
 def download_single_transcript(video_id, formatter, sleep_time):
     """Download a single transcript for a video ID."""
+
+
+
+
     try:
         transcript = fetch_transcript(video_id)
         json_transcript = formatter.format_transcript(transcript)
@@ -144,7 +170,7 @@ def download_transcripts():
         return
 
     formatter = JSONFormatter()
-    sleep_time = 0.2
+    sleep_time = 1
     error_count = 0
 
     # Use a progress bar to show download progress
@@ -202,6 +228,7 @@ def download_videos():
         for video_id in pbar:
             time.sleep(0.2)  # Rate limiting pause
             success = download_single_video(video_id, c.YT_CONFIG)
+            # break
             if not success:
                 error_count += 1
             pbar.set_postfix(errors=error_count)
