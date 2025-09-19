@@ -6,6 +6,7 @@ This script downloads YouTube transcripts and videos for video IDs specified in 
 Transcripts are downloaded first (if not already saved) and then videos are downloaded
 (if not already present). Logging is used to provide detailed debugging information.
 """
+import argparse
 import pdb
 import os
 import time
@@ -25,6 +26,10 @@ from youtube_transcript_api.formatters import JSONFormatter
 from tqdm import tqdm
 
 import conf as c  # Using 'c' for configuration
+from existing_video_ids import (
+    load_existing_video_id_list,
+    write_existing_video_ids,
+)
 
 
 
@@ -157,13 +162,16 @@ def download_single_transcript(video_id, formatter, sleep_time):
         return False, sleep_time
 
 
-def download_transcripts():
+def download_transcripts(test_mode=False):
     """Download transcripts for video IDs in conf.ID if not already saved."""
     os.makedirs(c.TRANSCRIPT_DIR, exist_ok=True)
     existing_ids = get_existing_ids(c.TRANSCRIPT_DIR, "json")
 
     all_ids = load_video_ids(c.ID)
     ids = list(all_ids - existing_ids)
+
+    if test_mode and ids:
+        ids = ids[:1]
 
     if not ids:
         logger.info("All transcripts are already downloaded.")
@@ -209,14 +217,19 @@ def download_single_video(video_id, download_options):
         return False
 
 
-def download_videos():
+def download_videos(test_mode=False):
     """Download videos for video IDs specified in conf.ID if not already downloaded."""
     os.makedirs(c.NPY_DIR, exist_ok=True)
     os.makedirs(c.VIDEO_DIR, exist_ok=True)
-    existing_ids = get_existing_ids(c.NPY_DIR, "mp4")
+    existing_ids = get_existing_ids(c.VIDEO_DIR, "mp4")
+    recorded_ids = write_existing_video_ids(existing_ids=existing_ids)
+    skip_ids = recorded_ids | load_existing_video_id_list()
 
     all_ids = load_video_ids(c.ID)
-    ids = list(all_ids - existing_ids)
+    ids = list(all_ids - skip_ids)
+
+    if test_mode and ids:
+        ids = ids[:1]
 
     if not ids:
         logger.info("All videos have already been downloaded.")
@@ -233,17 +246,42 @@ def download_videos():
                 error_count += 1
             pbar.set_postfix(errors=error_count)
 
+    write_existing_video_ids()
+
     logger.info("Video download completed: Total %d, Errors %d.", error_count)
 
 
-def main():
-    logger.info("Starting transcript download...")
-    download_transcripts()
-    logger.info("Transcript download completed.\n")
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Download ASL dataset assets from YouTube")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run a single download iteration for transcripts and videos",
+    )
+    parser.add_argument(
+        "--download",
+        choices=["transcripts", "videos", "all"],
+        default="all",
+        help="Select which assets to download",
+    )
+    return parser.parse_args(argv)
 
-    logger.info("Starting video download...")
-    download_videos()
-    logger.info("Video download completed.")
+
+def main(argv=None):
+    args = parse_args(argv)
+    if args.download in {"transcripts", "all"}:
+        logger.info("Starting transcript download...")
+        download_transcripts(test_mode=args.test)
+        logger.info("Transcript download completed.\n")
+    else:
+        logger.info("Skipping transcript download (mode: %s)", args.download)
+
+    if args.download in {"videos", "all"}:
+        logger.info("Starting video download...")
+        download_videos(test_mode=args.test)
+        logger.info("Video download completed.")
+    else:
+        logger.info("Skipping video download (mode: %s)", args.download)
 
 
 if __name__ == "__main__":
