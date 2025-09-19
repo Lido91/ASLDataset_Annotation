@@ -18,13 +18,8 @@ from yt_dlp.utils import (
     PostProcessingError,
     UnavailableVideoError,
 )
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api import (
-    TranscriptsDisabled,
-    NoTranscriptFound,
-    VideoUnavailable,
-    TooManyRequests,
-)
+import youtube_transcript_api as transcript_api
+from youtube_transcript_api import YouTubeTranscriptApi, YouTubeTranscriptApiException
 from youtube_transcript_api.formatters import JSONFormatter
 from tqdm import tqdm
 
@@ -36,6 +31,17 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+RATE_LIMIT_ERRORS = tuple(
+    err
+    for err in (
+        getattr(transcript_api, "RequestBlocked", None),
+        getattr(transcript_api, "IpBlocked", None),
+    )
+    if err is not None
+)
+
+_TRANSCRIPT_CLIENT = None
 
 
 def get_existing_ids(directory, ext):
@@ -49,22 +55,79 @@ def load_video_ids(file_path):
         return {line.strip() for line in f if line.strip()}
 
 
+def _normalise_languages(raw_languages):
+    if not raw_languages:
+        return []
+    if isinstance(raw_languages, str):
+        return [raw_languages]
+    if isinstance(raw_languages, (list, tuple, set)):
+        return [lang for lang in raw_languages if lang]
+    return [str(raw_languages)]
+
+
+def _get_transcript_client():
+    global _TRANSCRIPT_CLIENT
+    if _TRANSCRIPT_CLIENT is None:
+        try:
+            _TRANSCRIPT_CLIENT = YouTubeTranscriptApi()
+        except TypeError:
+            _TRANSCRIPT_CLIENT = YouTubeTranscriptApi
+    return _TRANSCRIPT_CLIENT
+
+
+def _fetched_to_dicts(fetched):
+    if hasattr(fetched, "to_raw_data"):
+        return fetched.to_raw_data()
+    if isinstance(fetched, list):
+        return fetched
+    try:
+        return [
+            {
+                "text": snippet.text,
+                "start": snippet.start,
+                "duration": snippet.duration,
+            }
+            for snippet in fetched
+        ]
+    except Exception:
+        return fetched
+
+
+def fetch_transcript(video_id):
+    """Return transcript entries for a video using whichever API is available."""
+    languages = _normalise_languages(c.LANGUAGE)
+
+    get_transcript = getattr(YouTubeTranscriptApi, "get_transcript", None)
+    if callable(get_transcript):
+        return get_transcript(video_id, languages=languages)
+
+    module_get_transcript = getattr(transcript_api, "get_transcript", None)
+    if callable(module_get_transcript):
+        return module_get_transcript(video_id, languages=languages)
+
+    languages_for_fetch = languages or ["en"]
+    fetched = _get_transcript_client().fetch(video_id, languages=languages_for_fetch)
+    return _fetched_to_dicts(fetched)
+
+
 def download_single_transcript(video_id, formatter, sleep_time):
     """Download a single transcript for a video ID."""
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=c.LANGUAGE)
+        transcript = fetch_transcript(video_id)
         json_transcript = formatter.format_transcript(transcript)
         transcript_path = os.path.join(c.TRANSCRIPT_DIR, f"{video_id}.json")
         with open(transcript_path, "w", encoding="utf-8") as out_file:
             out_file.write(json_transcript)
         logger.info("SUCCESS: Transcript for %s saved.", video_id)
         return True, sleep_time
-    except TooManyRequests as e:
-        sleep_time += 0.1  # Slightly increase delay on error
-        logger.error("Too many requests for %s. Error: %s", video_id, e)
-        return False, sleep_time
     except Exception as e:
-        logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
+        if RATE_LIMIT_ERRORS and isinstance(e, RATE_LIMIT_ERRORS):
+            sleep_time = min(sleep_time + 0.1, 5)
+            logger.error("Request throttled for %s. Error: %s", video_id, e)
+        elif isinstance(e, YouTubeTranscriptApiException):
+            logger.error("YouTube transcript API error for %s. Error: %s", video_id, e)
+        else:
+            logger.error("An unexpected error occurred for %s. Error: %s", video_id, e)
         return False, sleep_time
 
 
